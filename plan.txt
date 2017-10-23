@@ -1,0 +1,27 @@
+Statistics to gather for a "packagist distribution":
+- Dependencies appearing in composer.json's per module/plugin, across D7, D8, WP
+- Dependencies of dependencies (fully resolved) for each module, to get complete set of packages. 
+- Number of sites using each module/plugin that has 1+ packagist dependency.
+
+
+Approach:
+---------
+Data model SqLite DB with:
+
+project (id, cms, name, num_sites)
+package (id, name)
+project_package(project_id, package_id, is_direct)
+
+
+To obtain module/plugin dependencies for D7/D8,
+- Download Drupal.org releases.tsv dataset: https://drupal.org/files/releases.tsv
+- For the first of each unique {project_machine_name,api}, try to download
+  http://cgit.drupalcode.org/{project_machine_name}/plain/composer.json?h={version}
+- If composer.json is present,
+  * Fetch usage statistics, assign the project an entry in project table
+  * Record each required package from the composer.json in package / project_package as direct.
+  * Create a clean composer configuration in which we composer require drupal/{project_machine_name}
+  * For each non- "drupal/" package in composer.lock, record to package / project_package as indirect.
+
+ > When reporting number of sites needing a dependency, just count number of D8 sites for dependencies
+   of Drupal 8 core, don't re-count sites for every module.

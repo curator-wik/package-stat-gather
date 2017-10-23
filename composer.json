@@ -1,0 +1,33 @@
+{
+  "name": "mbaynton/packadist_stat_gather",
+  "description": "Gathers dependencies in use by Drupal's modules.",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Mike Baynton",
+      "email": "mike@mbaynton.com"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/mbaynton/drupalorg-dom-parser.git"
+    }
+  ],
+  "require": {
+    "wp-cli/php-cli-tools": "v0.11.8",
+    "guzzlehttp/guzzle": "^6.3",
+    "balsama/drupalorg-dom-parser": "0.0.x-dev",
+    "perchten/rmrdir": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "mbaynton\\StatGather\\": "src/"
+    }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^6.4"
+  }
+}

@@ -1,0 +1,20 @@
+{
+    "name": "packadistsurvey/d7",
+    "description": "Skeleton project for loading individual Drupal modules and producing a composer.lock for them",
+    "type": "drupal-module",
+    "authors": [
+        {
+            "name": "Mike Baynton",
+            "email": "mike@mbaynton.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {},
+    "repositories": {
+        "drupal": {
+            "type": "composer",
+            "url": "https://packages.drupal.org/7"
+        }
+    }
+}
