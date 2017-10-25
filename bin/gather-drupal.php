@@ -2,7 +2,7 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
 
-$opts = getopt('', ['fast-forward']);
+$opts = getopt('', ['fast-forward', 'filter:']);
 
 $streams = new \cli\Streams();
 $dbService = new \mbaynton\StatGather\DBService();
@@ -20,6 +20,18 @@ $progressBar->display();
 // Read releases.tsv from stdin.
 // https://drupal.org/files/releases.tsv
 $projects = $service->processReleasesTsv(STDIN);
+
+if (isset($opts['filter'])) {
+  if (substr($opts['filter'], 0, 1) === substr($opts['filter'], -1, 1)) {
+      $filter = $opts['filter'];
+  } else {
+      $filter = '|' . $opts['filter'] . '|';
+  }
+  $projects = array_filter($projects, function($project) use($filter) {
+      return preg_match($filter, $project->machine_name);
+  });
+}
+
 $progressBar->setTotal(count($projects));
 
 $lastProcessedProject = NULL;

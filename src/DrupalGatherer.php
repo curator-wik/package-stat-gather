@@ -6,6 +6,7 @@ use cli\Streams;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
 use mbaynton\StatGather\Model\ProjectModel;
+use PHPHtmlParser\Exceptions\CurlException;
 
 class DrupalGatherer {
 
@@ -81,6 +82,27 @@ class DrupalGatherer {
       return;
     }
 
+    // Get usage.
+    $retries = 0;
+    $project->num_sites = -1;
+    while ($retries < 2) {
+      $retries++;
+      try {
+        $domProject = new Stats($project->machine_name, TRUE);
+        switch ($project->compatible_api) {
+          case '8.x':
+            $project->num_sites = $domProject->getCurrentD8Usage();
+            break;
+          case '7.x':
+            $project->num_sites = $domProject->getCurrentD7Usage();
+            break;
+        }
+      } catch (CurlException $e) {
+        sleep(5);
+        continue;
+      }
+    }
+
     // Does it use Composer?
     $composerJsonUrl = sprintf('http://cgit.drupalcode.org/%s/plain/composer.json?h=%s',
       $project->machine_name,
@@ -101,7 +123,6 @@ class DrupalGatherer {
       }
     }
 
-
     if (! in_array($response->getStatusCode(), [200, 404])) {
       $this->output->err(
         "Error checking if %s uses a composer.json: %s\n",
@@ -110,16 +131,6 @@ class DrupalGatherer {
       );
     } else if ($response->getStatusCode() == 200) {
       // This project uses composer.json, so is of further interest.
-      // Get usage, then get or assign our own ID for this project.
-      $domProject = new Stats($project->machine_name, true);
-      switch ($project->compatible_api) {
-        case '8.x':
-          $project->num_sites = $domProject->getCurrentD8Usage();
-          break;
-        case '7.x':
-          $project->num_sites = $domProject->getCurrentD7Usage();
-          break;
-      }
 
       // Parse composer.json to record direct dependencies.
       $composerJson = json_decode($response->getBody());
@@ -167,10 +178,14 @@ class DrupalGatherer {
         $package = 'drupal/' . $project->machine_name;
 
         try {
-          $indirectDependencies = $this->composerWrangler->findDependenciesUsingExistingComposerJson(
-            $composerJsonPath,
-            $package
-          );
+          if ($package === 'drupal/drupal') {
+            $indirectDependencies = $this->composerWrangler->findDependenciesUsingCreateProject($package);
+          } else {
+            $indirectDependencies = $this->composerWrangler->findDependenciesUsingExistingComposerJson(
+              $composerJsonPath,
+              $package
+            );
+          }
 
           foreach ($indirectDependencies as $indirectDependency) {
             $this->dbService->recordDependency($project, $indirectDependency, false);
@@ -189,6 +204,9 @@ class DrupalGatherer {
           }
         }
       }
+    } else {
+      // Project doesn't use composer, just record it for its usage data.
+      $this->dbService->getProjectId($project);
     }
   }
 }

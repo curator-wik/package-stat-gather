@@ -6,6 +6,23 @@ namespace mbaynton\StatGather;
 
 class ComposerWranglerService {
 
+  protected function setupSandbox() {
+    $sandbox = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'packadist_sandbox';
+    if (file_exists($sandbox)) {
+      $this->delTree($sandbox);
+    }
+
+    mkdir($sandbox, 0744);
+    return $sandbox;
+  }
+
+  protected function getDependentsFromSandbox($sandbox, $description) {
+    if (! is_readable($sandbox . DIRECTORY_SEPARATOR . 'composer.lock')) {
+      throw new \RuntimeException("$description did not yield a composer.lock", 1);
+    }
+    return iterator_to_array($this->readPackagesFromComposerLock($sandbox . DIRECTORY_SEPARATOR . 'composer.lock'));
+  }
+
   /**
    * Returns the fully resolved set of dependencies for a composer package.
    *
@@ -20,24 +37,27 @@ class ComposerWranglerService {
     if (! is_readable($composerJson)) {
       throw new \RuntimeException("$composerJson is not a readable file.");
     }
-
-    $sandbox = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'packadist_sandbox';
-    if (file_exists($sandbox)) {
-      $this->delTree($sandbox);
-    }
-
-    mkdir($sandbox, 0744);
+    $sandbox = $this->setupSandbox();
     copy($composerJson, $sandbox . DIRECTORY_SEPARATOR . 'composer.json');
 
     $this->requirePackageInProject($sandbox, $package);
 
-    if (! is_readable($sandbox . DIRECTORY_SEPARATOR . 'composer.lock')) {
-      throw new \RuntimeException("Composer require $package did not yield a composer.lock", 1);
-    }
-    $dependents = iterator_to_array($this->readPackagesFromComposerLock($sandbox . DIRECTORY_SEPARATOR . 'composer.lock'));
-
+    $dependents = $this->getDependentsFromSandbox($sandbox, "composer require $package");
     $this->delTree($sandbox);
+    return $dependents;
+  }
 
+  public function findDependenciesUsingCreateProject($project) {
+    $sandbox = $this->setupSandbox();
+    $project = escapeshellarg($project);
+    shell_exec(<<<CMD
+cd $sandbox;
+composer create-project --quiet --no-interaction --ignore-platform-reqs $project .
+CMD
+);
+
+    $dependents = $this->getDependentsFromSandbox($sandbox, "composer create-project $project");
+    $this->delTree($sandbox);
     return $dependents;
   }
 
